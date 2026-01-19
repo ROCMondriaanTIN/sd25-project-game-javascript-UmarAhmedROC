@@ -5,10 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Minesweeper - eenvoudig</title>
 <style>
-  /* Eenvoudige, schone styling */
   :root {
-    --size: 10;      /* standaard bordgrootte */
-    --cell: 34px;    /* grootte van een cel */
+    --size: 10;  
+    --cell: 34px;    
     --gap: 4px;
   }
   body{
@@ -69,11 +68,10 @@
 </head>
 <body>
   <div class="app" id="app">
-    <h1>Minesweeper — Eenvoudig</h1>
+    <h1>Minesweeper</h1>
 
     <div class="controls">
       <div>
-        Grootte: 10x10
         Bommen:
         <input id="bombInput" type="number" min="1" value="15" style="width:64px"/>
       </div>
@@ -101,25 +99,25 @@
   - Linksklik: onthullen
   - Rechtsklik: vlag toggelen
   - Eerste klik: bommen worden geplaatst met beveiligde omgeving rond die klik
-  - Flood-fill (iteratief) voor lege gebieden
+  - Geen flood-fill
 */
 
-const boardEl = document.getElementById('board');
-const bombsLeftEl = document.getElementById('bombsLeft');
-const timerEl = document.getElementById('timer');
-const messageEl = document.getElementById('message');
-const resetBtn = document.getElementById('resetBtn');
-const bombInput = document.getElementById('bombInput');
+var boardEl = document.getElementById('board');
+var bombsLeftEl = document.getElementById('bombsLeft');
+var timerEl = document.getElementById('timer');
+var messageEl = document.getElementById('message');
+var resetBtn = document.getElementById('resetBtn');
+var bombInput = document.getElementById('bombInput');
 
-let size = 10;
-let totalCells = size * size;
-let totalBombs = Number(bombInput.value);
-let cells = [];        // array met cell-objecten
-let started = false;
-let timer = null;
-let seconds = 0;
-let bombsLeft = totalBombs;
-let gameOver = false;
+var size = 10;
+var totalCells = size * size;
+var totalBombs = Number(bombInput.value);
+var cells = [];        // array met cell-objecten
+var started = false;
+var timer = null;
+var seconds = 0;
+var bombsLeft = totalBombs;
+var gameOver = false;
 
 function resetBoard(){
   // init waarden
@@ -139,14 +137,14 @@ function resetBoard(){
   gameOver = false;
 
   // maak cellen en DOM elementen
-  for (let i = 0; i < totalCells; i++){
-    const el = document.createElement('div');
+  for (var i = 0; i < totalCells; i++){
+    var el = document.createElement('div');
     el.className = 'cell';
     el.dataset.index = i;
     el.tabIndex = 0;
     boardEl.appendChild(el);
 
-    const c = {
+    var c = {
       el: el,
       index: i,
       isBomb: false,
@@ -158,41 +156,51 @@ function resetBoard(){
     cells.push(c);
 
     // events
-    el.addEventListener('click', (e) => handleLeftClick(e, c));
-    el.addEventListener('contextmenu', (e) => { e.preventDefault(); handleRightClick(e, c); });
-    el.addEventListener('keydown', (e) => {
-      // toegankelijkheid: Enter openen, space vlag
-      if (e.key === 'Enter') handleLeftClick(e, c);
-      if (e.key === ' ') { e.preventDefault(); handleRightClick(e, c); }
-    });
+    el.addEventListener('click', (function(cell) {
+      return function(e) { handleLeftClick(e, cell); };
+    })(c));
+    el.addEventListener('contextmenu', (function(cell) {
+      return function(e) { e.preventDefault(); handleRightClick(e, cell); };
+    })(c));
+    el.addEventListener('keydown', (function(cell) {
+      return function(e) {
+        // toegankelijkheid: Enter openen, space vlag
+        if (e.key === 'Enter') handleLeftClick(e, cell);
+        if (e.key === ' ') { e.preventDefault(); handleRightClick(e, cell); }
+      };
+    })(c));
   }
 
   // bereken buren voor elke cel
-  for (let i = 0; i < totalCells; i++){
+  for (var i = 0; i < totalCells; i++){
     cells[i].neighbors = getNeighbors(i);
   }
 }
 
 function placeBombs(firstIndex){
   // zorg dat de eerste klik en diens buren veilig zijn
-  const safe = new Set([firstIndex, ...cells[firstIndex].neighbors]);
-  let placed = 0;
+  var safe = [firstIndex];
+  for (var j = 0; j < cells[firstIndex].neighbors.length; j++) {
+    safe.push(cells[firstIndex].neighbors[j]);
+  }
+  var placed = 0;
   while (placed < totalBombs){
-    const r = Math.floor(Math.random() * totalCells);
-    if (safe.has(r) || cells[r].isBomb) continue;
+    var r = Math.floor(Math.random() * totalCells);
+    if (safe.indexOf(r) !== -1 || cells[r].isBomb) continue;
     cells[r].isBomb = true;
     placed++;
   }
   // vul bombsAround per cel
-  for (let c of cells){
-    let count = 0;
-    for (let n of c.neighbors) if (cells[n].isBomb) count++;
+  for (var k = 0; k < cells.length; k++){
+    var c = cells[k];
+    var count = 0;
+    for (var m = 0; m < c.neighbors.length; m++) if (cells[c.neighbors[m]].isBomb) count++;
     c.bombsAround = count;
   }
 }
 
 function startTimer(){
-  timer = setInterval(() => {
+  timer = setInterval(function() {
     seconds++;
     timerEl.textContent = seconds;
   }, 1000);
@@ -232,38 +240,27 @@ function reveal(index){
     return;
   }
 
-  // iteratieve flood-fill: stack
-  const stack = [index];
-  while (stack.length){
-    const i = stack.pop();
-    const c = cells[i];
-    if (c.revealed || c.flagged) continue;
-    c.revealed = true;
-    c.el.classList.add('revealed');
+  cells[index].revealed = true;
+  cells[index].el.classList.add('revealed');
 
-    if (c.bombsAround > 0){
-      // toon aantal naastliggende bommen
-      c.el.textContent = c.bombsAround;
-      c.el.classList.add('number-' + c.bombsAround);
-    } else {
-      c.el.textContent = '';
-      // voeg buren toe om verder te onthullen
-      for (let n of c.neighbors){
-        if (!cells[n].revealed && !cells[n].isBomb) stack.push(n);
-      }
-    }
+  if (cells[index].bombsAround > 0){
+    // toon aantal naastliggende bommen
+    cells[index].el.textContent = cells[index].bombsAround;
+    cells[index].el.classList.add('number-' + cells[index].bombsAround);
+  } else {
+    cells[index].el.textContent = '';
   }
 }
 
 function getNeighbors(index){
-  const x = index % size;
-  const y = Math.floor(index / size);
-  const arr = [];
-  for (let dy = -1; dy <= 1; dy++){
-    for (let dx = -1; dx <= 1; dx++){
+  var x = index % size;
+  var y = Math.floor(index / size);
+  var arr = [];
+  for (var dy = -1; dy <= 1; dy++){
+    for (var dx = -1; dx <= 1; dx++){
       if (dx === 0 && dy === 0) continue;
-      const nx = x + dx;
-      const ny = y + dy;
+      var nx = x + dx;
+      var ny = y + dy;
       if (nx >= 0 && nx < size && ny >= 0 && ny < size){
         arr.push(ny * size + nx);
       }
@@ -278,7 +275,8 @@ function endGame(won){
   started = false;
 
   // onthul alle bommen
-  for (let c of cells){
+  for (var i = 0; i < cells.length; i++){
+    var c = cells[i];
     if (c.isBomb){
       c.el.classList.add('revealed', 'bomb');
       if (!c.revealed) c.el.textContent = '💣';
@@ -290,7 +288,10 @@ function endGame(won){
 
 function checkWin(){
   // win als alle niet-bomb cellen onthuld zijn
-  const left = cells.filter(c => !c.revealed && !c.isBomb).length;
+  var left = 0;
+  for (var i = 0; i < cells.length; i++) {
+    if (!cells[i].revealed && !cells[i].isBomb) left++;
+  }
   if (left === 0){
     endGame(true);
   }

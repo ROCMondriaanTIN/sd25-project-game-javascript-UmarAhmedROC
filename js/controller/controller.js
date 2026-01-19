@@ -1,109 +1,110 @@
-import Minesweeper from "../model/minesweeper.js";
-import View from "../view/view.js";
+var Controller = function() {
+  var BOARD_SIZE = 10;
+  var bombInput = document.getElementById("bombInput");
+  var resetBtn = document.getElementById("resetBtn");
 
-export default class Controller {
-  constructor() {
-    this.BOARD_SIZE = 10;
-    this.bombInput = document.getElementById("bombInput");
-    this.resetBtn = document.getElementById("resetBtn");
+  var view = View();
+  var timer = null;
+  var seconds = 0;
+  var model;
 
-    this.view = new View();
-
-    this.timer = null;
-    this.seconds = 0;
-
-    this.initEvents();
-    this.reset();
+  function initEvents() {
+    resetBtn.addEventListener("click", function() { reset(); });
+    bombInput.addEventListener("change", function() { reset(); });
   }
 
-  initEvents() {
-    this.resetBtn.addEventListener("click", () => this.reset());
-    this.bombInput.addEventListener("change", () => this.reset());
-  }
+  function reset() {
+    if (timer) clearInterval(timer);
 
-  reset() {
-    if (this.timer) clearInterval(this.timer);
+    seconds = 0;
+    view.updateTimer(0);
+    view.showMessage("");
 
-    this.seconds = 0;
-    this.view.updateTimer(0);
-    this.view.showMessage("");
+    var size = BOARD_SIZE;
+    var bombs = Number(bombInput.value);
 
-    const size = this.BOARD_SIZE;
-    const bombs = Number(this.bombInput.value);
+    model = Minesweeper(size, bombs);
 
-    this.model = new Minesweeper(size, bombs);
+    view.setupBoard(size);
 
-    this.view.setupBoard(size);
+    for (var i = 0; i < model.totalCells; i++) {
+      var el = view.createCell(i);
 
-    for (let i = 0; i < this.model.totalCells; i++) {
-      const el = this.view.createCell(i);
+      model.cells[i].el = el;
 
-      this.model.cells[i].el = el;
-
-      el.addEventListener("click", () => this.leftClick(i));
-      el.addEventListener("contextmenu", e => {
-        e.preventDefault();
-        this.rightClick(i);
-      });
-      el.addEventListener("keydown", e => {
-        if (e.key === "Enter") this.leftClick(i);
-        if (e.key === " ") {
+      el.addEventListener("click", (function(index) {
+        return function() { leftClick(index); };
+      })(i));
+      el.addEventListener("contextmenu", (function(index) {
+        return function(e) {
           e.preventDefault();
-          this.rightClick(i);
-        }
-      });
+          rightClick(index);
+        };
+      })(i));
+      el.addEventListener("keydown", (function(index) {
+        return function(e) {
+          if (e.key === "Enter") leftClick(index);
+          if (e.key === " ") {
+            e.preventDefault();
+            rightClick(index);
+          }
+        };
+      })(i));
     }
 
-    this.view.setBombsLeft(this.model.bombsLeft);
+    view.setBombsLeft(model.bombsLeft);
   }
 
-  leftClick(index) {
-    if (this.model.gameOver) return;
+  function leftClick(index) {
+    if (model.gameOver) return;
 
-    if (!this.model.started) {
-      this.model.started = true;
-      this.model.placeBombs(index);
-      this.startTimer();
+    if (!model.started) {
+      model.started = true;
+      model.placeBombs(index);
+      startTimer();
     }
 
-    const changed = this.model.reveal(index);
+    var changed = model.reveal(index);
 
     if (changed.length === 1 && changed[0].isBomb) {
-      this.gameOver(false);
+      gameOver(false);
       return;
     }
 
-    this.view.renderChanges(changed);
+    view.renderChanges(changed);
 
-    if (this.model.checkWin()) {
-      this.gameOver(true);
+    if (model.checkWin()) {
+      gameOver(true);
     }
   }
 
-  rightClick(index) {
-    if (this.model.gameOver) return;
+  function rightClick(index) {
+    if (model.gameOver) return;
 
-    const flagged = this.model.toggleFlag(index);
-    this.view.renderFlag(this.model.cells[index], flagged);
-    this.view.setBombsLeft(this.model.bombsLeft);
+    var flagged = model.toggleFlag(index);
+    view.renderFlag(model.cells[index], flagged);
+    view.setBombsLeft(model.bombsLeft);
   }
 
-  startTimer() {
-    this.timer = setInterval(() => {
-      this.seconds++;
-      this.view.updateTimer(this.seconds);
+  function startTimer() {
+    timer = setInterval(function() {
+      seconds++;
+      view.updateTimer(seconds);
     }, 1000);
   }
 
-  gameOver(won) {
-    this.model.gameOver = true;
-    clearInterval(this.timer);
+  function gameOver(won) {
+    model.gameOver = true;
+    clearInterval(timer);
 
-    const bombs = this.model.revealAllBombs();
-    this.view.renderChanges(bombs);
+    var bombs = model.revealAllBombs();
+    view.renderChanges(bombs);
 
-    this.view.showMessage(
+    view.showMessage(
       won ? "Gefeliciteerd! Je hebt gewonnen." : "Game over — je bent ontploft."
     );
   }
-}
+
+  initEvents();
+  reset();
+};

@@ -1,40 +1,39 @@
-export default class View {
-  constructor() {
-    this.board = document.getElementById("board");
-    this.bombsLeftEl = document.getElementById("bombsLeft");
-    this.timerEl = document.getElementById("timer");
-    this.messageEl = document.getElementById("message");
+var View = function() {
+  var board = document.getElementById("board");
+  var bombsLeftEl = document.getElementById("bombsLeft");
+  var timerEl = document.getElementById("timer");
+  var messageEl = document.getElementById("message");
+
+  function setupBoard(size) {
+    board.style.setProperty("--size", size);
+    board.innerHTML = "";
   }
 
-  setupBoard(size) {
-    this.board.style.setProperty("--size", size);
-    this.board.innerHTML = "";
-  }
-
-  createCell(index) {
-    const el = document.createElement("div");
+  function createCell(index) {
+    var el = document.createElement("div");
     el.className = "cell";
     el.dataset.index = index;
     el.tabIndex = 0;
-    this.board.appendChild(el);
+    board.appendChild(el);
     return el;
   }
 
-  updateTimer(sec) {
-    this.timerEl.textContent = sec;
+  function updateTimer(sec) {
+    timerEl.textContent = sec;
   }
 
-  setBombsLeft(n) {
-    this.bombsLeftEl.textContent = n;
+  function setBombsLeft(n) {
+    bombsLeftEl.textContent = n;
   }
 
-  showMessage(msg) {
-    this.messageEl.textContent = msg;
+  function showMessage(msg) {
+    messageEl.textContent = msg;
   }
 
-  renderChanges(changes) {
-    for (let c of changes) {
-      const el = c.el;
+  function renderChanges(changes) {
+    for (var i = 0; i < changes.length; i++) {
+      var c = changes[i];
+      var el = c.el;
 
       el.classList.add("revealed");
 
@@ -53,7 +52,17 @@ export default class View {
     }
   }
 
-  renderFlag(cell, flagged) {
+  function renderFlag(cell, flagged) {
     cell.el.innerHTML = flagged ? '<span class="flag">🚩</span>' : "";
   }
-}
+
+  return {
+    setupBoard: setupBoard,
+    createCell: createCell,
+    updateTimer: updateTimer,
+    setBombsLeft: setBombsLeft,
+    showMessage: showMessage,
+    renderChanges: renderChanges,
+    renderFlag: renderFlag
+  };
+};
