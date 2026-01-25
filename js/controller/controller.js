@@ -1,110 +1,159 @@
+// Game manager: controls events and game flow
 var Controller = function() {
   var BOARD_SIZE = 10;
+
   var bombInput = document.getElementById("bombInput");
   var resetBtn = document.getElementById("resetBtn");
 
-  var view = View();
-  var timer = null;
-  var seconds = 0;
+  var view = new View();
   var model;
+  var gameTimer;
+  var secondsElapsed;
 
-  function initEvents() {
-    resetBtn.addEventListener("click", function() { reset(); });
-    bombInput.addEventListener("change", function() { reset(); });
+  // When user clicks reset button
+  function onResetClick() {
+    reset();
   }
 
-  function reset() {
-    if (timer) clearInterval(timer);
+  // When user changes bomb count
+  function onBombInputChange() {
+    reset();
+  }
 
-    seconds = 0;
+  // Create new game
+  function reset() {
+    if (gameTimer) {
+      clearInterval(gameTimer);
+    }
+
+    secondsElapsed = 0;
     view.updateTimer(0);
     view.showMessage("");
 
-    var size = BOARD_SIZE;
-    var bombs = Number(bombInput.value);
+    var boardSize = BOARD_SIZE;
+    var bombCount = Number(bombInput.value);
 
-    model = Minesweeper(size, bombs);
+    model = new Minesweeper(boardSize, bombCount);
+    view.setupBoard(boardSize);
 
-    view.setupBoard(size);
+    // Create all cells
+    var i;
+    for (i = 0; i < model.totalCells; i++) {
+      var cellElement = view.createCell(i);
+      model.cells[i].el = cellElement;
 
-    for (var i = 0; i < model.totalCells; i++) {
-      var el = view.createCell(i);
+      // Add click event
+      cellElement.addEventListener("click", makeLeftClickHandler(i));
 
-      model.cells[i].el = el;
+      // Add right-click event
+      cellElement.addEventListener("contextmenu", makeRightClickHandler(i));
 
-      el.addEventListener("click", (function(index) {
-        return function() { leftClick(index); };
-      })(i));
-      el.addEventListener("contextmenu", (function(index) {
-        return function(e) {
-          e.preventDefault();
-          rightClick(index);
-        };
-      })(i));
-      el.addEventListener("keydown", (function(index) {
-        return function(e) {
-          if (e.key === "Enter") leftClick(index);
-          if (e.key === " ") {
-            e.preventDefault();
-            rightClick(index);
-          }
-        };
-      })(i));
+      // Add keyboard event
+      cellElement.addEventListener("keydown", makeKeydownHandler(i));
     }
 
     view.setBombsLeft(model.bombsLeft);
   }
 
-  function leftClick(index) {
-    if (model.gameOver) return;
+  // Create left-click function for a cell
+  function makeLeftClickHandler(cellIndex) {
+    return function() {
+      onLeftClick(cellIndex);
+    };
+  }
 
-    if (!model.started) {
-      model.started = true;
-      model.placeBombs(index);
-      startTimer();
-    }
+  // Create right-click function for a cell
+  function makeRightClickHandler(cellIndex) {
+    return function(e) {
+      e.preventDefault();
+      onRightClick(cellIndex);
+    };
+  }
 
-    var changed = model.reveal(index);
+  // Create keyboard function for a cell
+  function makeKeydownHandler(cellIndex) {
+    return function(e) {
+      if (e.key === "Enter") {
+        onLeftClick(cellIndex);
+      }
+      if (e.key === " ") {
+        e.preventDefault();
+        onRightClick(cellIndex);
+      }
+    };
+  }
 
-    if (changed.length === 1 && changed[0].isBomb) {
-      gameOver(false);
+  // Handle left-click on a cell
+  function onLeftClick(cellIndex) {
+    if (model.gameOver) {
       return;
     }
 
-    view.renderChanges(changed);
+    // First click: place bombs and start timer
+    if (!model.started) {
+      model.started = true;
+      model.placeBombs(cellIndex);
+      startGameTimer();
+    }
 
+    // Reveal cells
+    var revealedCells = model.reveal(cellIndex);
+
+    // Check if player hit a bomb
+    if (revealedCells.length === 1 && revealedCells[0].isBomb) {
+      onGameOver(false);
+      return;
+    }
+
+    // Draw revealed cells on screen
+    view.renderChanges(revealedCells);
+
+    // Check if player won
     if (model.checkWin()) {
-      gameOver(true);
+      onGameOver(true);
     }
   }
 
-  function rightClick(index) {
-    if (model.gameOver) return;
+  // Handle right-click on a cell
+  function onRightClick(cellIndex) {
+    if (model.gameOver) {
+      return;
+    }
 
-    var flagged = model.toggleFlag(index);
-    view.renderFlag(model.cells[index], flagged);
+    var flagged = model.toggleFlag(cellIndex);
+    view.renderFlag(model.cells[cellIndex], flagged);
     view.setBombsLeft(model.bombsLeft);
   }
 
-  function startTimer() {
-    timer = setInterval(function() {
-      seconds++;
-      view.updateTimer(seconds);
+  // Start the game timer
+  function startGameTimer() {
+    gameTimer = setInterval(function() {
+      secondsElapsed++;
+      view.updateTimer(secondsElapsed);
     }, 1000);
   }
 
-  function gameOver(won) {
+  // End the game
+  function onGameOver(playerWon) {
     model.gameOver = true;
-    clearInterval(timer);
+    clearInterval(gameTimer);
 
-    var bombs = model.revealAllBombs();
-    view.renderChanges(bombs);
+    var allBombs = model.revealAllBombs();
+    view.renderChanges(allBombs);
 
-    view.showMessage(
-      won ? "Gefeliciteerd! Je hebt gewonnen." : "Game over — je bent ontploft."
-    );
+    var message;
+    if (playerWon) {
+      message = "Gefeliciteerd! Je hebt gewonnen.";
+    } else {
+      message = "Game over — je bent ontploft.";
+    }
+    view.showMessage(message);
   }
 
-  initEvents();
+  // Start listening to buttons
+  resetBtn.addEventListener("click", onResetClick);
+  bombInput.addEventListener("change", onBombInputChange);
+
+  // Create first game
   reset();
 };

@@ -1,117 +1,146 @@
+// Create a new Minesweeper game
 var Minesweeper = function(size, bombs) {
   var totalCells = size * size;
   var totalBombs = Math.min(bombs, totalCells - 1);
   var cells = [];
   var started = false;
-  var seconds = 0;
   var bombsLeft = totalBombs;
   var gameOver = false;
-  var timer = null;
 
-  for (var i = 0; i < totalCells; i++) {
-    cells.push({
+  // Create empty cells
+  var i;
+  for (i = 0; i < totalCells; i++) {
+    cells[i] = {
       index: i,
       isBomb: false,
       revealed: false,
       flagged: false,
       bombsAround: 0,
       neighbors: []
-    });
+    };
   }
 
-  for (var i = 0; i < totalCells; i++) {
+  // Find all neighbors for each cell
+  for (i = 0; i < totalCells; i++) {
     cells[i].neighbors = getNeighbors(i);
   }
 
-  function getNeighbors(index) {
-    var x = index % size;
-    var y = Math.floor(index / size);
-    var arr = [];
+  // Find neighbors of a cell (8 surrounding cells)
+  function getNeighbors(cellIndex) {
+    var x = cellIndex % size;
+    var y = Math.floor(cellIndex / size);
+    var result = [];
 
-    for (var dy = -1; dy <= 1; dy++) {
-      for (var dx = -1; dx <= 1; dx++) {
+    var dy, dx, newX, newY, newIndex;
+    for (dy = -1; dy <= 1; dy++) {
+      for (dx = -1; dx <= 1; dx++) {
         if (dx === 0 && dy === 0) continue;
-        var nx = x + dx;
-        var ny = y + dy;
+        
+        newX = x + dx;
+        newY = y + dy;
 
-        if (nx >= 0 && nx < size && ny >= 0 && ny < size) {
-          arr.push(ny * size + nx);
+        if (newX >= 0 && newX < size && newY >= 0 && newY < size) {
+          newIndex = newY * size + newX;
+          result.push(newIndex);
         }
       }
     }
-    return arr;
+    return result;
   }
 
-  function placeBombs(firstClickIndex) {
-    var safe = [firstClickIndex];
-    for (var j = 0; j < cells[firstClickIndex].neighbors.length; j++) {
-      safe.push(cells[firstClickIndex].neighbors[j]);
+  // Place bombs randomly (except first-click cell)
+  this.placeBombs = function(firstClickIndex) {
+    var safeZone = [];
+    safeZone.push(firstClickIndex);
+    
+    var j;
+    for (j = 0; j < cells[firstClickIndex].neighbors.length; j++) {
+      safeZone.push(cells[firstClickIndex].neighbors[j]);
     }
+
     var placed = 0;
-
     while (placed < totalBombs) {
-      var r = Math.floor(Math.random() * totalCells);
-      if (safe.indexOf(r) !== -1 || cells[r].isBomb) continue;
+      var randomIndex = Math.floor(Math.random() * totalCells);
+      var isSafe = safeZone.indexOf(randomIndex) !== -1;
+      var alreadyHasBomb = cells[randomIndex].isBomb;
+      
+      if (isSafe || alreadyHasBomb) continue;
 
-      cells[r].isBomb = true;
+      cells[randomIndex].isBomb = true;
       placed++;
     }
 
-    for (var k = 0; k < cells.length; k++) {
-      var c = cells[k];
-      var count = 0;
-      for (var m = 0; m < c.neighbors.length; m++) {
-        if (cells[c.neighbors[m]].isBomb) count++;
+    // Count bombs next to each cell
+    var k, currentCell, bombCount;
+    for (k = 0; k < cells.length; k++) {
+      currentCell = cells[k];
+      bombCount = 0;
+      
+      var m;
+      for (m = 0; m < currentCell.neighbors.length; m++) {
+        if (cells[currentCell.neighbors[m]].isBomb) {
+          bombCount++;
+        }
       }
-      c.bombsAround = count;
+      currentCell.bombsAround = bombCount;
     }
-  }
+  };
 
-  function reveal(index) {
-    var cell = cells[index];
-    if (cell.revealed || cell.flagged) return [];
+  // Reveal a single cell
+  this.reveal = function(cellIndex) {
+    var cell = cells[cellIndex];
+    if (cell.revealed || cell.flagged) {
+      return [];
+    }
 
     cell.revealed = true;
     return [cell];
-  }
+  };
 
-  function toggleFlag(index) {
-    var c = cells[index];
-    if (c.revealed) return false;
+  // Add or remove a flag on a cell
+  this.toggleFlag = function(cellIndex) {
+    var cell = cells[cellIndex];
+    if (cell.revealed) {
+      return false;
+    }
 
-    c.flagged = !c.flagged;
-    bombsLeft += c.flagged ? -1 : 1;
-    return c.flagged;
-  }
+    cell.flagged = !cell.flagged;
+    if (cell.flagged) {
+      bombsLeft--;
+    } else {
+      bombsLeft++;
+    }
+    return cell.flagged;
+  };
 
-  function checkWin() {
-    for (var i = 0; i < cells.length; i++) {
-      if (!cells[i].revealed && !cells[i].isBomb) return false;
+  // Check if player won (all non-bombs revealed)
+  this.checkWin = function() {
+    var i;
+    for (i = 0; i < cells.length; i++) {
+      if (!cells[i].revealed && !cells[i].isBomb) {
+        return false;
+      }
     }
     return true;
-  }
+  };
 
-  function revealAllBombs() {
+  // Get all bomb cells for end game
+  this.revealAllBombs = function() {
     var bombs = [];
-    for (var i = 0; i < cells.length; i++) {
-      if (cells[i].isBomb) bombs.push(cells[i]);
+    var i;
+    for (i = 0; i < cells.length; i++) {
+      if (cells[i].isBomb) {
+        bombs.push(cells[i]);
+      }
     }
     return bombs;
-  }
-
-  return {
-    cells: cells,
-    totalCells: totalCells,
-    totalBombs: totalBombs,
-    started: started,
-    seconds: seconds,
-    bombsLeft: bombsLeft,
-    gameOver: gameOver,
-    timer: timer,
-    placeBombs: placeBombs,
-    reveal: reveal,
-    toggleFlag: toggleFlag,
-    checkWin: checkWin,
-    revealAllBombs: revealAllBombs
   };
+
+  // Properties that other code needs
+  this.cells = cells;
+  this.totalCells = totalCells;
+  this.totalBombs = totalBombs;
+  this.started = started;
+  this.bombsLeft = bombsLeft;
+  this.gameOver = gameOver;
 };

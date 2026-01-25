@@ -1,68 +1,68 @@
+// Handle all screen drawing (UI) 
 var View = function() {
   var board = document.getElementById("board");
   var bombsLeftEl = document.getElementById("bombsLeft");
   var timerEl = document.getElementById("timer");
   var messageEl = document.getElementById("message");
 
-  function setupBoard(size) {
+  // Clear board and set size
+  this.setupBoard = function(size) {
     board.style.setProperty("--size", size);
     board.innerHTML = "";
-  }
+  };
 
-  function createCell(index) {
-    var el = document.createElement("div");
-    el.className = "cell";
-    el.dataset.index = index;
-    el.tabIndex = 0;
-    board.appendChild(el);
-    return el;
-  }
+  // Create one cell element
+  this.createCell = function(cellIndex) {
+    var element = document.createElement("div");
+    element.className = "cell";
+    element.dataset.index = cellIndex;
+    element.tabIndex = 0;
+    board.appendChild(element);
+    return element;
+  };
 
-  function updateTimer(sec) {
-    timerEl.textContent = sec;
-  }
+  // Show timer number
+  this.updateTimer = function(seconds) {
+    timerEl.textContent = seconds;
+  };
 
-  function setBombsLeft(n) {
-    bombsLeftEl.textContent = n;
-  }
+  // Show bombs left number
+  this.setBombsLeft = function(count) {
+    bombsLeftEl.textContent = count;
+  };
 
-  function showMessage(msg) {
-    messageEl.textContent = msg;
-  }
+  // Show game message
+  this.showMessage = function(text) {
+    messageEl.textContent = text;
+  };
 
-  function renderChanges(changes) {
-    for (var i = 0; i < changes.length; i++) {
-      var c = changes[i];
-      var el = c.el;
+  // Draw revealed cells (bombs or numbers)
+  this.renderChanges = function(cellList) {
+    var i;
+    for (i = 0; i < cellList.length; i++) {
+      var cell = cellList[i];
+      var element = cell.el;
 
-      el.classList.add("revealed");
+      element.classList.add("revealed");
 
-      if (c.isBomb) {
-        el.classList.add("bomb");
-        el.textContent = "💣";
-        continue;
-      }
-
-      if (c.bombsAround > 0) {
-        el.textContent = c.bombsAround;
-        el.classList.add("number-" + c.bombsAround);
+      if (cell.isBomb) {
+        element.classList.add("bomb");
+        element.textContent = "💣";
+      } else if (cell.bombsAround > 0) {
+        element.textContent = cell.bombsAround;
+        element.classList.add("number-" + cell.bombsAround);
       } else {
-        el.textContent = "";
+        element.textContent = "";
       }
     }
-  }
+  };
 
-  function renderFlag(cell, flagged) {
-    cell.el.innerHTML = flagged ? '<span class="flag">🚩</span>' : "";
-  }
-
-  return {
-    setupBoard: setupBoard,
-    createCell: createCell,
-    updateTimer: updateTimer,
-    setBombsLeft: setBombsLeft,
-    showMessage: showMessage,
-    renderChanges: renderChanges,
-    renderFlag: renderFlag
+  // Draw or remove flag
+  this.renderFlag = function(cell, isFlagged) {
+    if (isFlagged) {
+      cell.el.innerHTML = '<span class="flag">🚩</span>';
+    } else {
+      cell.el.innerHTML = "";
+    }
   };
 };
